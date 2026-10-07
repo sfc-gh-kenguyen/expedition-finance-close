@@ -1,0 +1,14 @@
+employee_id,employee_name,department,pay_date,pay_type,gross_amount,net_amount,reference_id
+EMP-101,Sarah Chen,Front Desk,11/01/2026,Regular,"$4,200.00","$3,150.00",PAY-1001
+EMP-102,James Rivera,F&B,11/01/2026,Regular,"$3,800.00","$2,850.00",PAY-1002
+EMP-103,Maria Santos,Housekeeping,11/01/2026,Regular,"$3,500.00","$2,625.00",PAY-1003
+EMP-104,David Kim,MGMT,11/01/2026,Regular,"$8,500.00","$6,375.00",PAY-1004
+EMP-105,Priya Patel,Spa & Wellness,11/01/2026,Regular,"$3,900.00","$2,925.00",PAY-1005
+EMP-101,Sarah Chen,Front Desk,11/15/2026,Regular,"$4,200.00","$3,150.00",PAY-1006
+EMP-102,James Rivera,F&B,11/15/2026,Regular,"$3,800.00","$2,850.00",PAY-1007
+EMP-103,Maria Santos,Housekeeping,11/15/2026,Regular,"$3,500.00","$2,625.00",PAY-1008
+EMP-104,David Kim,MGMT,11/15/2026,Regular,"$8,500.00","$6,375.00",PAY-1009
+EMP-105,Priya Patel,Spa & Wellness,11/15/2026,Regular,"$3,900.00","$2,925.00",PAY-1010
+EMP-102,James Rivera,F&B,11/15/2026,Regular,"$3,800.00","$2,850.00",PAY-1007
+EMP-106,Tom Bradley,Front Desk,11/15/2026,Overtime,"$1,250.00","$937.50",PAY-1011
+EMP-104,David Kim,MGMT,11/30/2026,Bonus,"$5,000.00","$3,750.00",PAY-1012

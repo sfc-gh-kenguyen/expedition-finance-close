@@ -1,0 +1,19 @@
+journal_id,posting_date,account_code,account_name,description,amount,department,category,reference_id,status
+JE-2001,Nov 01 2026,6100,Salaries & Wages,Payroll batch Nov 1,"(23,900.00)",Operations,PAY,PAY-BATCH-1001,Posted
+JE-2002,Nov 01 2026,6200,Employee Benefits,Benefits allocation Nov 1,"(4,780.00)",Operations,PAY,BEN-1001,Posted
+JE-2003,Nov 05 2026,7100,Utilities,Electric bill - main building,"(8,750.00)",Facilities,UTIL,UTIL-1001,Posted
+JE-2004,Nov 07 2026,7200,Maintenance & Repairs,HVAC repair - conference wing,"(3,200.00)",Facilities,MAINT,MAINT-1001,Posted
+JE-2005,Nov 10 2026,7300,Marketing & Advertising,Q1 2027 digital campaign deposit,"(15,000.00)",Marketing,MKTG,MKTG-1001,Posted
+JE-2006,Nov 12 2026,7400,Travel & Entertainment,Regional managers meeting,"(6,500.00)",MGMT,TRAVEL,TRV-1001,Posted
+JE-2007,Nov 15 2026,6100,Salaries & Wages,Payroll batch Nov 15,"(25,150.00)",Operations,PAY,PAY-BATCH-1006,Posted
+JE-2008,Nov 15 2026,6200,Employee Benefits,Benefits allocation Nov 15,"(5,030.00)",Operations,PAY,BEN-1006,Posted
+JE-2009,Nov 18 2026,7500,Office Supplies,Printer paper and toner,"(1,200.00)",Admin,MISC,MISC-1001,Posted
+JE-2010,Nov 20 2026,7100,Utilities,Water and sewer - November,"(3,400.00)",Facilities,UTIL,UTIL-1002,Posted
+JE-2011,Nov 22 2026,7300,Marketing & Advertising,Event sponsorship - tourism expo,"(12,000.00)",Marketing,MKTG,MKTG-1002,Posted
+JE-2012,Nov 25 2026,7200,Maintenance & Repairs,Pool resurfacing phase 1,"(22,000.00)",Facilities,MAINT,MAINT-1002,Posted
+JE-2013,Nov 28 2026,7400,Travel & Entertainment,Conference registration fees,"(4,800.00)",MGMT,TRAVEL,TRV-1002,Posted
+JE-2014,Nov 28 2026,7400,Travel & Entertainment,Conference registration fees reversal,4800.00,MGMT,TRAVEL,TRV-1002-R,Reversed
+JE-2015,Nov 29 2026,7500,Office Supplies,Ergonomic desk chairs x3,"(2,850.00)",Admin,MISC,MISC-1002,Posted
+JE-2016,Nov 30 2026,6100,Salaries & Wages,Bonus payout - management,"(5,000.00)",MGMT,PAY,PAY-BATCH-1012,Posted
+JE-2017,Nov 30 2026,6300,Insurance,Property insurance - Q1 2027 premium,"(18,500.00)",Finance,INS,INS-1001,Posted
+JE-2018,Nov 30 2026,7600,Professional Services,External audit retainer - Nov,"(7,500.00)",Finance,PROF,PROF-1001,Posted
