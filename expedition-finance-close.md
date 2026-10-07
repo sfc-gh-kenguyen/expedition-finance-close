@@ -25,7 +25,7 @@ In this hands-on lab you'll fix that for **Meridian Stay**, a fictional global h
 - How to land raw data in **Snowflake-managed Apache Iceberg tables**, an open format that other engines can read
 - How to use **CoCo** to standardize department names and category codes, parse dates and amounts, remove duplicates, and filter out reversed entries
 - How to match bank transactions to the general ledger, tie payroll back to it, and flag every discrepancy
-- How to run a **Streamlit** reconciliation dashboard that traces every gap to its root cause
+- How to run a **Streamlit** reconciliation dashboard that traces every gap to its root cause, and extend it with CoCo
 - How to create a **Semantic View** with CoCo and a **Cortex Agent** backed by it
 - How to ask close-cycle questions in plain language in **Snowflake CoWork**
 
@@ -121,7 +121,7 @@ The Workspace opens with the repo's files visible in the file explorer on the le
 
 1. In the Workspace file explorer, open **`lab.ipynb`**.
 
-2. Click **Connect** next to the Run button and select **Create and connect**. Wait for the status bar at the bottom of the notebook to show **Connected** before proceeding.
+2. Click **Connect** next to the Run button and select **Create and connect**. Wait for the status bar at the bottom of the notebook to show **Connected** before proceeding. The first connection can take a few minutes while Snowflake starts the notebook's compute.
 
 3. Set the notebook's active **role** and **warehouse** using the **role & warehouse picker** at the top of the Notebooks editor:
    - **Role:** **ACCOUNTADMIN**
@@ -181,9 +181,11 @@ Send this prompt to CoCo. Compare the output against the expected output in the 
 
 You should see **13**, **18**, and **18** rows loaded.
 
+> **Short on time?** At any CoCo step, you can paste the expected output from the notebook into the empty cell below the prompt and run it.
+
 ### See the mess
 
-Run the **`peek_raw`** cell. It shows each table's first few rows so you can see the problems before you fix them:
+Run the **`peek_raw`** cell. It shows every row from all three exports side by side, so you can see the problems before you fix them:
 
 - **Payroll:** James Rivera (EMP-102) appears **twice** on 11/15 with the same reference ID — a re-export duplicate. Amounts are text like `"$4,200.00"`. Departments say `F&B` and `MGMT` instead of full names.
 - **GL:** Amounts are in parentheses for debits: `(23,900.00)`. Dates say `Nov 01 2026`. JE-2014 is a **Reversed** entry that cancels JE-2013, but both are still in the export. Categories are codes: `PAY`, `UTIL`, `MAINT`.
@@ -226,6 +228,7 @@ In the **same CoCo conversation**, send this prompt. CoCo reuses the mapping fro
 > - *Columns: transaction_id, transaction_date, description, amount, department, category, source_system, reference_id*
 > - *Convert all dates to DATE type and all amounts to NUMBER(12,2) — make debits positive (absolute value)*
 > - *Map department names and category codes to the standard values*
+> - *Set source_system to 'Payroll Register', 'General Ledger', or 'Bank Statement'*
 > - *Exclude reversed GL entries (status = 'Reversed') and the original entries they cancel (a reversal's reference_id is the original's reference_id plus '-R')*
 > - *Remove the duplicate payroll row (same employee, same date, same reference_id — keep one)*
 > - *For the bank statement, set category to 'Uncategorized' and department to 'Unknown' since those fields aren't in the export"*
@@ -234,16 +237,17 @@ In the **same CoCo conversation**, send this prompt. CoCo reuses the mapping fro
 
 Run the **`check_transactions`** cell. You should see:
 
-| transactions | source_systems | categories | departments |
-|---|---|---|---|
-| 46 | 3 | 9 | 11 |
+| transactions | source_systems | source_system_names | categories | departments |
+|---|---|---|---|---|
+| 46 | 3 | Bank Statement, General Ledger, Payroll Register | 9 | 11 |
 
-That's 49 raw rows (13 payroll + 18 GL + 18 bank), minus 1 payroll duplicate and the 2 GL entries that cancel each other (JE-2013 and its reversal, JE-2014). If your numbers are different, ask CoCo to fix it rather than editing the SQL yourself:
+The 9 categories are the 8 standard ones plus **Uncategorized** for the bank rows, and the 11 departments are the 10 standard ones plus **Unknown** for the bank rows. CoCo's STEP 2 summary may list fewer, because it only shows the labels it had to change.
+
+If your numbers are different, ask CoCo to fix it rather than editing the SQL yourself:
 
 - More than 46 transactions: *"Which transactions appear more than once in MERIDIAN_STAY_FINANCE.CURATED.TRANSACTIONS? Fix the duplicate removal, and make sure both JE-2013 and its reversal JE-2014 are excluded."*
 - Fewer than 46: *"Are all 12 unique payroll rows, 16 GL entries, and 18 bank rows included?"*
-
-Short on time? Paste the expected output from the notebook into the empty cell and run it.
+- Different source system names: *"Set source_system to exactly 'Payroll Register', 'General Ledger', or 'Bank Statement'."* The dashboard and the gap check rely on these names.
 
 ### STEP 4 — Find every reconciliation gap
 
@@ -275,11 +279,11 @@ This is the kind of gap that a manual close misses: too small to flag, too regul
 
 Notice what's *not* in the ledger: the $4,800 conference registration fees (JE-2013) and their reversal (JE-2014). The registration was cancelled and never paid, so neither the charge nor its reversal belongs in November's books. Leave JE-2013 in and Travel spending is overstated by $4,800.
 
-> **What about payroll?** Payroll is checked a different way. The payroll register lists individual paychecks, while the GL records each pay run as one batch. The register totals tie to the GL batches ($23,900 on Nov 1, $25,150 on Nov 15, $5,000 on Nov 30), but only because STEP 3 removed the duplicate row. Left in, James Rivera's second $3,800 paycheck would have put Nov 15 off by $3,800.
+> **What about payroll?** Payroll is checked a different way: the paychecks in the payroll register should add up to each payroll batch in the GL. You'll add that tie-out to the dashboard with CoCo in STEP 5.
 
 <!-- ------------------------ -->
 ## See It on a Live Dashboard
-Duration: 5
+Duration: 9
 
 A table of gaps is useful. A dashboard the whole team can look at during the close meeting is better. The companion repo includes a pre-built **Streamlit** app that reads from both `CURATED.TRANSACTIONS` and `CURATED.RECONCILIATION_GAPS` and shows the reconciliation status for November 2026.
 
@@ -296,10 +300,32 @@ A table of gaps is useful. A dashboard the whole team can look at during the clo
 The dashboard tells one story from top to bottom:
 
 - **Summary metrics** at the top: how many of the 18 bank transactions matched the GL (16 of 18, 89%), whether the month is ready to close (**Not Ready**, 2 gaps remain), and the total unreconciled amount ($47,200).
-- A **waterfall chart** that traces November's cash flow from opening to closing balance. Each bar is a payment leaving the account. **Blue** bars matched a GL entry; **red** bars did not. Red triangles call out the unmatched amounts ($47,000 and $200), and only the opening balance, the two gaps, and the closing balance are labeled.
+- A **waterfall chart** that traces November's cash flow from opening to closing balance. Each bar is a payment leaving the account. **Blue** bars matched a GL entry; **red** bars did not. Red triangles call out each gap's transaction ID and amount (BK-3006 for $47,000 and BK-3018 for $200).
 - **Investigate the gaps** — one card per gap. Each card states what the bank paid, shows the GL entries around that date, and explains why none of them match. The root cause is right there: the $47,000 venue deposit was authorized but never journaled; the $200 bank fee is a recurring gap that nobody journals.
-- **Next steps to close** — a checklist of the journal entries that need to be posted. Once every gap has one, reconciliation reaches 100% and the month is ready to close.
+- **Next steps to close** — a numbered list of the journal entries that need to be posted. Once every gap has one, reconciliation reaches 100% and the month is ready to close.
 - A collapsed **Full ledger** expander at the bottom with all 46 transactions and filters by source system and category.
+
+### STEP 5 — Tie out payroll with CoCo
+
+The dashboard checks the bank against the GL. Payroll needs a check of its own: the payroll register lists each paycheck, while the GL records each pay run as one batch. Instead of writing that check yourself, describe it to CoCo.
+
+With `streamlit_app.py` open, send this prompt to CoCo:
+
+> *"Add a payroll tie-out below the gap cards. For each pay date, compare the payroll register total to the GL payroll batch (salaries only, not benefits), and show whether they match."*
+
+Review the changes CoCo proposes before you accept them. It should add a new section, not rewrite the code that's already there. Accept the changes and click **Run** again. You should see a new section like this, with a message that payroll ties out:
+
+| Pay date | Payroll register | GL payroll batch | Difference |
+|---|---|---|---|
+| Nov 1 | $23,900.00 | $23,900.00 | $0.00 |
+| Nov 15 | $25,150.00 | $25,150.00 | $0.00 |
+| Nov 30 | $5,000.00 | $5,000.00 | $0.00 |
+
+> **Why "salaries only"?** The GL's Payroll category also includes benefits allocations ($4,780 on Nov 1 and $5,030 on Nov 15). They aren't in the payroll register, so counting them would make every pay date look out of balance.
+
+The tie-out only works because STEP 3 removed the duplicate payroll row. Left in, James Rivera's second $3,800 paycheck would push the Nov 15 register total to $28,950, $3,800 more than the GL batch.
+
+If the GL column comes out empty, tell CoCo: *"The GL payroll batches have a reference ID starting with PAY-BATCH."*
 
 > **Want to share it?** Click **Deploy** in the Workspace to publish the app to `MERIDIAN_STAY_FINANCE.ANALYTICS` so teammates with access can open it from **Projects >> Streamlit**. This step is optional for the lab.
 
@@ -325,8 +351,8 @@ A Semantic View describes your data in **business terms**: which columns are dim
 > - *Name: CLOSE_RECONCILIATION_SV*
 > - *Location: MERIDIAN_STAY_FINANCE.ANALYTICS*
 > - *Source tables: MERIDIAN_STAY_FINANCE.CURATED.TRANSACTIONS and MERIDIAN_STAY_FINANCE.CURATED.RECONCILIATION_GAPS*
-> - *Use transaction_id as the unique key for TRANSACTIONS, and add clear descriptions and synonyms for category, department, and source_system*
-> - *In the SOURCE_SYSTEM description, note that the payroll register, general ledger, and bank statement record the same money, so spending totals should use only source_system = 'General Ledger'*
+> - *Use transaction_id as the unique key for TRANSACTIONS and gap_id as the unique key for RECONCILIATION_GAPS, and add clear descriptions and synonyms for category, department, and source_system*
+> - *Give SOURCE_SYSTEM its own description on each table. On TRANSACTIONS, use: 'System the transaction came from. The payroll register, general ledger, and bank statement record the same money, so spending totals should use only General Ledger rows.'*
 > - *Make AMOUNT a fact on both TRANSACTIONS and RECONCILIATION_GAPS*
 > - *Make TRANSACTION_DATE a time dimension on both TRANSACTIONS and RECONCILIATION_GAPS*
 > - *Add this verified query for "What are the unresolved reconciliation gaps for November 2026?": SELECT transaction_id, transaction_date, description, amount, gap_type, notes FROM MERIDIAN_STAY_FINANCE.CURATED.RECONCILIATION_GAPS ORDER BY amount DESC"*
@@ -334,14 +360,25 @@ A Semantic View describes your data in **business terms**: which columns are dim
 5. Allow CoCo to create the Semantic View draft in the Workspace. This creates an editable draft; it does not publish the view yet.
 
 6. Review the draft in the Semantic View editor. Confirm it contains:
-   - Both `TRANSACTIONS` and `RECONCILIATION_GAPS`, with `TRANSACTION_ID` as the unique key for `TRANSACTIONS`
-   - `AMOUNT` under **Facts** for both tables
-   - `TRANSACTION_DATE` under **Time Dimensions** for both tables
-   - Synonyms on `CATEGORY` (*expense type, account type, cost category*), `DEPARTMENT` (*cost center, business unit*), and `SOURCE_SYSTEM` (*system of record, data source*)
-   - A `SOURCE_SYSTEM` description that says spending totals use the General Ledger only
+
+   **`TRANSACTIONS`**
+   - `TRANSACTION_ID` as the unique key
+   - `AMOUNT` under **Facts**
+   - `TRANSACTION_DATE` under **Time Dimensions**
+   - Synonyms on `CATEGORY` (for example, *expense type*) and `DEPARTMENT` (for example, *cost center*)
+   - A `SOURCE_SYSTEM` description that says spending totals use only General Ledger rows
+
+   **`RECONCILIATION_GAPS`**
+   - `GAP_ID` as the unique key
+   - `AMOUNT` under **Facts**
+   - `TRANSACTION_DATE` under **Time Dimensions**
+
+   **Verified queries**
    - One verified query: *"What are the unresolved reconciliation gaps for November 2026?"*
 
-   CoCo may also add metrics, such as a total amount, or extra synonyms. That's fine. If one of the items above differs, for example `AMOUNT` landing under **Dimensions**, ask CoCo to fix it (*"Make AMOUNT a fact"*) before publishing.
+   **Fine to keep:** extra synonyms (for example, on `GAP_TYPE` or `SOURCE_SYSTEM`), extra descriptions, and metrics such as a total amount. Your exact synonym wording may differ.
+
+   **Fix before publishing:** anything on the list above that's missing or in the wrong place, such as `AMOUNT` under **Dimensions** or a `SOURCE_SYSTEM` description without the General Ledger note. Ask CoCo to fix it, for example *"Make AMOUNT a fact on both tables."*
 
 7. Click **Publish** in the top right of the editor. In the dialog, confirm **Name** `CLOSE_RECONCILIATION_SV`, **Database** `MERIDIAN_STAY_FINANCE`, and **Schema** `ANALYTICS`, then click **Publish**.
 
@@ -406,17 +443,21 @@ The first answer tells you *what* doesn't tie out. Continue the same conversatio
 
    You should see it's BK-3006, dated November 12, described as "WIRE TFR - GRAND BALLROOM VENUE DEPOSIT." It hit the bank but was never journaled in the GL — someone authorized the payment, but nobody created the journal entry.
 
-2. **Check the total picture.** Ask: *"Show me total general ledger spending by category for November 2026, as a chart."*
+2. **Ask if it will happen again.** Ask: *"Which of these gaps will happen again next month, and what should we change so it doesn't?"*
+
+   The $200 bank service fee is charged every month, so it will come back in December unless someone sets up a recurring journal entry for it. The $47,000 wire was a one-time miss; the fix is a control, such as requiring a journal entry before a wire is released. That's the question leadership asked after last quarter's audit: could it happen again?
+
+3. **Check the total picture.** Ask: *"Show me total general ledger spending by category for November 2026, as a chart."*
 
    You should see Payroll as the largest category ($63,860), followed by Marketing ($27,000) and Maintenance ($25,200, mostly the $22,000 pool resurfacing). The agent should produce a bar chart.
 
    > **Why the general ledger?** The payroll register, GL, and bank statement record the same money, so a total across all three would count it two or three times. The GL is the book of record for spending.
 
-3. **Look at what's new.** Ask: *"Which categories had only one transaction in November? Are any of those unusual?"*
+4. **Prove nothing else is missing.** Ask: *"How much cash left the bank in November, and how much did the general ledger record? Does the difference match the reconciliation gaps?"*
 
-   Insurance, Professional Services, and Travel each had one entry. Travel is the $6,500 regional managers meeting, now that the cancelled conference fees are out. The $7,500 external audit retainer is a regular monthly charge. The $18,500 insurance premium is for Q1 2027 coverage, so an accountant would ask whether it belongs in November's spending or should be recorded as a prepaid expense.
+   The bank paid out **$211,960** and the GL recorded **$164,760**. The **$47,200** difference is exactly the two gaps, so they account for every dollar that's out of balance. That's what the controller needs to hear before the auditors arrive.
 
-4. **Turn it into action.** Ask: *"Draft a short email to the controller explaining the two reconciliation gaps and recommending next steps for each."*
+5. **Turn it into action.** Ask: *"Draft a short email to the controller explaining the two gaps, the journal entry to post for each before December 10, and how to prevent each one."*
 
    CoWork turns the analysis into a message you could send today. This is the point of the whole lab: anyone on the team can go from *"what doesn't tie out?"* to *"here's what we need to fix"* without re-running the reconciliation by hand.
 
@@ -457,7 +498,7 @@ Congratulations! You took Meridian Stay's November close from three disconnected
 - Landed raw exports in **Snowflake-managed Apache Iceberg tables**, keeping the data in an open format
 - Used **CoCo** to standardize department names and category codes, parse three date formats and three amount formats, remove a payroll duplicate, and drop a reversed GL entry along with the entry it cancels
 - Found **2 reconciliation gaps** totaling **$47,200** — a $47,000 venue deposit wire transfer that was never journaled and a $200 bank fee that was never recorded
-- Ran a **Streamlit** reconciliation dashboard that visualizes every gap and shows the root cause
+- Ran a **Streamlit** reconciliation dashboard that visualizes every gap and shows the root cause, then used **CoCo** to add a payroll tie-out
 - Created a **Semantic View** with CoCo and a **Cortex Agent** backed by it
 - Asked close-cycle questions in plain language in **Snowflake CoWork**
 

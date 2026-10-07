@@ -57,11 +57,13 @@ def load_gaps() -> set:
 try:
     txns = load_transactions()
     gap_ids = load_gaps()
-except Exception:
+except Exception as err:
     st.error(
-        "The reconciliation tables aren't ready yet. Finish STEP 3 and STEP 4 in the "
+        "Couldn't load the reconciliation tables. If you haven't yet, finish STEP 3 and STEP 4 in the "
         "notebook (CURATED.TRANSACTIONS and CURATED.RECONCILIATION_GAPS), then rerun this app."
     )
+    with st.expander("Error details"):
+        st.code(str(err))
     st.stop()
 bank = txns[txns["source_system"] == "Bank Statement"].sort_values(
     ["transaction_date", "transaction_id"]
@@ -106,7 +108,7 @@ st.caption(
 
 OPENING = 566_500.00
 running = OPENING
-rows = [{"label": "Open\nNov 1", "start": 0, "end": running, "amount": running,
+rows = [{"label": "Open\nNov 1", "txn": "Opening balance", "start": 0, "end": running, "amount": running,
          "description": "Opening balance Nov 1", "date": "Nov 1", "status": "balance",
          "sort": 0, "show_label": True}]
 
@@ -115,10 +117,9 @@ for i, (_, row) in enumerate(bank.iterrows()):
     running -= row["amount"]
     is_gap = row["transaction_id"] in gap_ids
     dt_str = row["transaction_date"].strftime("%b %-d")
-    display = f"{row['transaction_id']}\n{dt_str}" if is_gap else ""
     rows.append({
-        "label": f"_{i+1}" if not is_gap else display,
-        "display_label": display,
+        "label": f"_{i+1}",
+        "txn": row["transaction_id"],
         "start": running, "end": prev,
         "amount": row["amount"],
         "description": row["description"],
@@ -128,7 +129,7 @@ for i, (_, row) in enumerate(bank.iterrows()):
         "show_label": is_gap,
     })
 
-rows.append({"label": "Close\nNov 30", "start": 0, "end": running, "amount": running,
+rows.append({"label": "Close\nNov 30", "txn": "Closing balance", "start": 0, "end": running, "amount": running,
              "description": "Closing balance Nov 30", "date": "Nov 30", "status": "balance",
              "sort": len(rows), "show_label": True})
 
@@ -140,8 +141,9 @@ bars = (
     .encode(
         x=alt.X("label:N", title=None,
                  sort=alt.SortField("sort"),
-                 axis=alt.Axis(labelAngle=-45, labelFontSize=10, labelLimit=120, ticks=False,
-                               labelExpr="substring(datum.value, 0, 1) == '_' ? '' : datum.value")),
+                 axis=alt.Axis(labelAngle=0, labelFontSize=10, labelLimit=0, labelOverlap=False,
+                               ticks=False, labelPadding=6,
+                               labelExpr="substring(datum.value, 0, 1) == '_' ? '' : split(datum.value, '\\n')")),
         y=alt.Y("start:Q", title="Balance ($)", axis=alt.Axis(format="$,.0f"),
                  scale=alt.Scale(domain=[0, OPENING * 1.02])),
         y2="end:Q",
@@ -153,7 +155,7 @@ bars = (
                              labelFontSize=12, titleFontSize=12),
         ),
         tooltip=[
-            alt.Tooltip("label:N", title="Transaction"),
+            alt.Tooltip("txn:N", title="Transaction"),
             alt.Tooltip("date:N", title="Date"),
             alt.Tooltip("description:N", title="Description"),
             alt.Tooltip("amount:Q", title="Amount", format="$,.2f"),
@@ -165,7 +167,7 @@ bars = (
 
 gap_wf = wf[wf["status"] == "unmatched"].copy()
 gap_wf["marker_y"] = gap_wf["end"] + (OPENING * 0.025)
-gap_wf["marker_label"] = gap_wf["amount"].map(lambda a: f"${a:,.0f}")
+gap_wf["marker_label"] = gap_wf.apply(lambda r: f"{r['txn']}\n${r['amount']:,.0f}", axis=1)
 
 markers = (
     alt.Chart(gap_wf)
@@ -174,7 +176,7 @@ markers = (
 )
 marker_labels = (
     alt.Chart(gap_wf)
-    .mark_text(fontSize=12, fontWeight="bold", dy=-14)
+    .mark_text(fontSize=12, fontWeight="bold", dy=-34, lineBreak="\n")
     .encode(x=alt.X("label:N", sort=alt.SortField("sort")), y="marker_y:Q", text="marker_label:N", color=alt.value("#ef4444"))
 )
 
@@ -242,12 +244,11 @@ for _, gap in gap_df.iterrows():
 
 # ── Next steps ────────────────────────────────────────────────────────────────
 st.subheader("Next steps to close")
-for gap_row in gap_df.itertuples():
-    st.checkbox(
-        f"Create journal entry for **{gap_row.transaction_id}** "
-        f"(${gap_row.amount:,.2f} — {gap_row.description})",
-        value=False, disabled=True,
-    )
+st.markdown("\n".join(
+    f"{n}. Post a journal entry for **{gap_row.transaction_id}** "
+    f"(\\${gap_row.amount:,.2f}, {gap_row.description})"
+    for n, gap_row in enumerate(gap_df.itertuples(), start=1)
+))
 st.caption(
     "Once journal entries are posted for every gap, "
     "reconciliation reaches 100% and the month is ready to close."
