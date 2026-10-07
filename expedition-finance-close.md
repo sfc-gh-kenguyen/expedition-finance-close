@@ -355,7 +355,7 @@ A Semantic View describes your data in **business terms**: which columns are dim
 > - *Give SOURCE_SYSTEM its own description on each table. On TRANSACTIONS, use: 'System the transaction came from. The payroll register, general ledger, and bank statement record the same money, so spending totals should use only General Ledger rows.'*
 > - *Make AMOUNT a fact on both TRANSACTIONS and RECONCILIATION_GAPS*
 > - *Make TRANSACTION_DATE a time dimension on both TRANSACTIONS and RECONCILIATION_GAPS*
-> - *Add this verified query for "What are the unresolved reconciliation gaps for November 2026?": SELECT transaction_id, transaction_date, description, amount, gap_type, notes FROM MERIDIAN_STAY_FINANCE.CURATED.RECONCILIATION_GAPS ORDER BY amount DESC"*
+> - *Add this verified query for "Are there any reconciliation gaps for November 2026?": SELECT transaction_id, transaction_date, description, amount, gap_type, notes FROM MERIDIAN_STAY_FINANCE.CURATED.RECONCILIATION_GAPS ORDER BY amount DESC"*
 
 5. Allow CoCo to create the Semantic View draft in the Workspace. This creates an editable draft; it does not publish the view yet.
 
@@ -374,7 +374,7 @@ A Semantic View describes your data in **business terms**: which columns are dim
    - `TRANSACTION_DATE` under **Time Dimensions**
 
    **Verified queries**
-   - One verified query: *"What are the unresolved reconciliation gaps for November 2026?"*
+   - One verified query: *"Are there any reconciliation gaps for November 2026?"*
 
    **Fine to keep:** extra synonyms (for example, on `GAP_TYPE` or `SOURCE_SYSTEM`), extra descriptions, and metrics such as a total amount. Your exact synonym wording may differ.
 
@@ -403,7 +403,7 @@ A Semantic View describes your data in **business terms**: which columns are dim
 6. Under the **General** tab, set:
    - **Description:** `I am the Meridian Stay Close Reconciliation Agent. I answer questions about the November 2026 month-end close across payroll, the general ledger, and the bank statement, flag reconciliation gaps, and help the finance team close faster.`
    - **Example questions:**
-     - `What are the unresolved reconciliation gaps for November 2026, and what's the total dollar amount?`
+     - `Are there any reconciliation gaps for November 2026? If so, what's the total dollar amount?`
      - `What's the largest discrepancy, and which systems does it involve?`
      - `Show me total general ledger spending by category for November 2026.`
 
@@ -431,9 +431,9 @@ Since you created the agent through the UI, it's already available in Snowflake 
 
 3. Ask:
 
-   > *"What are the unresolved reconciliation gaps for November 2026, and what's the total dollar amount?"*
+   > *"Are there any reconciliation gaps for November 2026? If so, what's the total dollar amount?"*
 
-The agent should list **2 gaps** totaling **$47,200**: the $47,000 venue deposit wire transfer and the $200 bank service fee.
+The agent should find **2 gaps** totaling **$47,200**: the $47,000 venue deposit wire transfer and the $200 bank service fee.
 
 ### Investigate in CoWork
 
