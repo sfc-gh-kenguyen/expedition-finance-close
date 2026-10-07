@@ -11,6 +11,18 @@ st.set_page_config(page_title="Meridian Stay: November 2026 Close", layout="wide
 conn = st.connection("snowflake")
 
 
+def normalize_system(label) -> str:
+    """Map source-system labels to the names the dashboard expects (CoCo may write BANK_STATEMENT, GL, ...)."""
+    s = str(label).strip().lower()
+    if "bank" in s:
+        return "Bank Statement"
+    if "ledger" in s or s.startswith("gl"):
+        return "General Ledger"
+    if "payroll" in s:
+        return "Payroll Register"
+    return label
+
+
 @st.cache_data(ttl=60)
 def load_transactions() -> pd.DataFrame:
     df = conn.query(
@@ -25,6 +37,7 @@ def load_transactions() -> pd.DataFrame:
     df.columns = [c.lower() for c in df.columns]
     df["transaction_date"] = pd.to_datetime(df["transaction_date"])
     df["amount"] = pd.to_numeric(df["amount"])
+    df["source_system"] = df["source_system"].map(normalize_system)
     return df
 
 
@@ -55,6 +68,12 @@ bank = txns[txns["source_system"] == "Bank Statement"].sort_values(
 ).reset_index(drop=True)
 
 bank_total = len(bank)
+if bank_total == 0:
+    st.error(
+        "No bank transactions found in CURATED.TRANSACTIONS. Check that STEP 3 set source_system "
+        "to 'Bank Statement' for the bank rows, then rerun this app."
+    )
+    st.stop()
 bank_matched = bank_total - len(gap_ids)
 bank_unmatched = len(gap_ids)
 gap_amount = bank.loc[bank["transaction_id"].isin(gap_ids), "amount"].sum()
