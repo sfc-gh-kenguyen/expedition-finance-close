@@ -175,11 +175,13 @@ Run the **`upload_files`** Python cell. It copies the three CSVs from the repo's
 
 `COPY INTO` is Snowflake's bulk-loading command. It reads files from a stage and inserts them into a table, and it works the same way whether the target is a standard table or an Iceberg table.
 
-Send this prompt to CoCo. Compare the output against the expected output in the notebook. If they match, click **Allow** to run it.
+Send this prompt to CoCo, then compare its SQL against the expected output in the notebook. If it does the same thing, click **Allow** to run it.
+
+> **CoCo's SQL won't always match word for word.** CoCo writes its SQL fresh each time, so it may format statements differently, add optional settings, or take a slightly different route than the expected output. That's fine. What matters is that it does the same thing and that the row counts and check results match.
 
 > *"Load the three CSV files in the stage @MERIDIAN_STAY_FINANCE.RAW.FINANCIAL_EXPORTS into their matching Iceberg tables in MERIDIAN_STAY_FINANCE.RAW: payroll_register.csv into PAYROLL_REGISTER, gl_journal_entries.csv into GL_JOURNAL_ENTRIES, and bank_statement.csv into BANK_STATEMENT. Use the file format MERIDIAN_STAY_FINANCE.RAW.CSV_FF and load the columns in file order."*
 
-You should see **13**, **18**, and **18** rows loaded.
+You should see **13**, **18**, and **18** rows loaded. CoCo may list the columns explicitly, wrap the load in `SELECT $1, $2, …`, or add `MATCH_BY_COLUMN_NAME = NONE`. All of these load the columns in file order, so they're fine as long as the row counts match.
 
 > **Short on time?** At any CoCo step, you can paste the expected output from the notebook into the empty cell below the prompt and run it.
 
@@ -187,9 +189,9 @@ You should see **13**, **18**, and **18** rows loaded.
 
 Run the **`peek_raw`** cell. It shows every row from all three exports side by side, so you can see the problems before you fix them:
 
-- **Payroll:** James Rivera (EMP-102) appears **twice** on 11/15 with the same reference ID — a re-export duplicate. Amounts are text like `"$4,200.00"`. Departments say `F&B` and `MGMT` instead of full names.
-- **GL:** Amounts are in parentheses for debits: `(23,900.00)`. Dates say `Nov 01 2026`. JE-2014 is a **Reversed** entry that cancels JE-2013, but both are still in the export. Categories are codes: `PAY`, `UTIL`, `MAINT`.
 - **Bank:** The cleanest of the three — ISO dates, negative numbers for debits — but the descriptions are free text (`"WIRE TFR - GRAND BALLROOM VENUE DEPOSIT"`), and there's no category or department at all.
+- **GL:** Amounts are in parentheses for debits: `(23,900.00)`. Dates say `Nov 01 2026`. JE-2014 is a **Reversed** entry that cancels JE-2013, but both are still in the export. Categories are codes: `PAY`, `UTIL`, `MAINT`.
+- **Payroll:** James Rivera (EMP-102) appears **twice** on 11/15 with the same reference ID — a re-export duplicate. Amounts are text like `"$4,200.00"`. Departments say `F&B` and `MGMT` instead of full names.
 
 You can't reconcile until all three systems speak the same language, and that's next.
 
