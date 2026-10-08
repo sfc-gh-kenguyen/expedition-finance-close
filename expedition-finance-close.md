@@ -135,7 +135,7 @@ The Workspace opens with the repo's files visible in the file explorer on the le
 
 Open the **CoCo** chat panel from the Workspace toolbar. You'll send it prompts throughout the lab.
 
-> **Key principle:** Use CoCo to generate the hard parts and understand why. The workflow is: describe -> generate -> compare -> run. After CoCo generates SQL, compare it against the **Expected output** shown in the notebook. If they match, click **Allow** to run it. Optionally, copy the SQL into the notebook cell for future reference.
+> **Key principle:** Use CoCo to generate the hard parts and understand why. The workflow is: describe -> generate -> compare -> run. After CoCo generates SQL, compare it against the **Expected output** shown in the notebook. If it does the same thing, click **Allow** to run it. Optionally, copy the SQL into the notebook cell for future reference.
 
 ### Run the setup cell
 
